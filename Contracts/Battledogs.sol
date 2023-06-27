@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: No license
+// SPDX-License-Identifier: Unlicensed
 
 // @title NFT Game by OxSorcerers for Battledog Games
 // https://twitter.com/0xSorcerers | https://github.com/Dark-Viper | https://t.me/Oxsorcerer | https://t.me/battousainakamoto | https://t.me/darcViper
@@ -18,10 +18,10 @@ interface Iburn {
 }
 
 contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {        
-        constructor(string memory _name, string memory _symbol, address GAMEAddress, address _newGuard) 
+        constructor(string memory _name, string memory _symbol, address gameAddress, address _newGuard) 
             ERC721(_name, _symbol)
         {
-            GAME = GAMEAddress;
+            game = gameAddress;
             guard = _newGuard;
         }
     using Math for uint256;
@@ -29,22 +29,22 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;  
 
     uint256 COUNTER = 0;
-    uint256 public mintFee = 20000 ether;
+    uint256 public mintFee = 0.00001 ether;
     uint256 public _pid = 0;
     uint256 public _pay = 1;
-    uint256 public requiredAmount = 2000000 * 10**18;
-    uint256 public activatingAmount = 20000000 * 10**18;
-    uint256 private divisor = 1 * 10**18;
-    uint256 public TotalContractBurns = 0;
+    uint256 public requiredAmount = 2000000 * 10**6;
+    uint256 public activatingAmount = 20000000 * 10**6;
+    uint256 private divisor = 1 * 10**6;
+    uint256 public TotalContractTransfers = 0;
     uint256 public TotalGAMEBurns = 0;    
     uint256 BattlesTotal = 0; 
     using Strings for uint256;
     string public baseURI;
     address private guard; 
-    address public GAME;
+    address public game;
     string public Author = "0xSorcerer | Battousai Nakamoto | Dark-Viper";
     bool public paused = false;        
-    address public BoBBAddress;  
+    address public immutable deadAddress = 0x000000000000000000000000000000000000dEaD;  
 
     modifier onlyGuard() {
         require(msg.sender == guard, "Not authorized.");
@@ -52,7 +52,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     modifier onlyBurner() {
-        require(msg.sender == GAME, "Not authorized.");
+        require(msg.sender == game, "Not authorized.");
         _;
     }
 
@@ -98,7 +98,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     mapping (uint256 => Assaulter[]) public assaulters;
     mapping (uint256 => Debilitator[]) public debilitators;
 
-    event TokenMinted(string _name, uint256 indexed tokenId);
+    event TokenMinted(uint256 indexed tokenId, string indexed _name);
 
     function mint(string memory _name) public payable nonReentrant {
         require(!paused, "Paused Contract");
@@ -119,7 +119,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Mint a new ERC721 token for the player
         uint256 tokenId = COUNTER;
         _mint(msg.sender, tokenId);
-        emit TokenMinted(_name, tokenId);
+        emit TokenMinted(tokenId, _name);
         COUNTER++;
     }
 
@@ -135,9 +135,9 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         charge = _charge;
     }
 
-    function setGAMEAddress (address _GAMEAddress) external onlyOwner {
+    function setaGAMEAddress (address _gameAddress) external onlyOwner {
         require(msg.sender == owner(), "Not Owner.");
-        GAME = _GAMEAddress;
+        game = _gameAddress;
     }
 
     function updateMintFee(uint256 _mintFee) external onlyOwner() {
@@ -164,9 +164,18 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         TokenInfo storage tokens = AllowedCrypto[_pid];
         IERC20 paytoken;
         paytoken = tokens.paytoken;               
-        paytoken.transfer(BoBBAddress, burnAmount); 
+        paytoken.transfer(deadAddress, burnAmount); 
         paytoken.transfer(developmentAddress, tax); 
-        TotalContractBurns += burnAmount;       
+        TotalContractTransfers += burnAmount;       
+    }
+
+    function toll (uint256 _burnAmount, uint256 _num) internal {
+        uint256 burnAmount = (_burnAmount * _num)/100 ;
+        TokenInfo storage tokens = AllowedCrypto[_pid];
+        IERC20 paytoken;
+        paytoken = tokens.paytoken;                
+        paytoken.transfer(developmentAddress, burnAmount); 
+        TotalContractTransfers += burnAmount;       
     }
 
     function burnGAME(uint256 _burnAmount) internal {
@@ -175,7 +184,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         paytoken = tokens.paytoken;
         paytoken.transferFrom(msg.sender, address(this), _burnAmount);
         // Call the Burn function from the GAME contract
-        Iburn(GAME).Burn(_burnAmount);
+        Iburn(game).Burn(_burnAmount);
         TotalGAMEBurns += _burnAmount;       
     }
     
@@ -203,8 +212,8 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
             cost = activatingAmount;   
             //Transfer Required Tokens to Activate NFT        
             transferTokens(cost); 
-            //Initiate a 10% burn from the contract       
-            burn(cost, 10); 
+            //Initiate a 2% toll from the contract       
+            toll(cost, 2); 
         }     
         // Activate NFT
         players[_tokenId].activate++;
@@ -256,8 +265,8 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         cost = requiredAmount;
         //Transfer Required Tokens to Weaponize NFT
         transferTokens(cost); 
-         //Initiate a 10% toll from the contract
-        burn(cost, 10);
+         //Initiate a 2% toll from the contract
+        toll(cost, 2);
         // increment the function call counter
         functionCalls[attackerId]++;
         // update the fightTimestamps record
@@ -279,7 +288,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         emit AssaultEvent(attackerId, defenderId, stolenPoints, block.timestamp);
         players[attackerId].fights++;
         players[attackerId].history++;
-        players[attackerId].payout += ((requiredAmount - (requiredAmount/10))/divisor);
+        players[attackerId].payout += ((requiredAmount - (requiredAmount/17))/divisor);
         addAssaulter(attackerId, defenderId, stolenPoints);
     }
 
@@ -298,7 +307,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         players[_playerId].attack = players[_playerId].attack - (reward * 100);
         //calculate payout        
         uint256 winmultiplier = 5;
-        uint256 payreward = ((requiredAmount - (requiredAmount/10))/divisor) * reward * winmultiplier;
+        uint256 payreward = ((requiredAmount - (requiredAmount/17))/divisor) * reward * winmultiplier;
         players[_playerId].payout += payreward;
         // Emit event for payout 
         emit AssaultPayoutClaimed(_playerId, payreward);
@@ -321,8 +330,8 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         cost = requiredAmount;
         //Transfer Required Tokens to Weaponize NFT
         transferTokens(cost); 
-        //Initiate 10% burn from the contract
-        burn(cost, 10);
+        //Initiate 2% toll from the contract
+        toll(cost, 2);
         // increment the function call counter
         functionCalls[attackerId]++;
         // update the fightTimestamps record
@@ -363,7 +372,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         players[_playerId].defence = players[_playerId].defence - (reward * 100);
         //calculate payout        
         uint256 winmultiplier = 5;
-        uint256 payreward = ((requiredAmount - (requiredAmount/10))/divisor) * reward * winmultiplier;
+        uint256 payreward = ((requiredAmount - (requiredAmount/17))/divisor) * reward * winmultiplier;
         players[_playerId].payout += payreward;
         // Emit event for payout 
         emit DebilitatePayoutClaimed(_playerId, payreward);
@@ -401,6 +410,11 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         // update the last reset timestamp
         lastReset[_playerId] = block.timestamp;
     }
+    
+    function changeOwner(address newOwner) external onlyGuard {
+        // Update the owner to the new owner
+        transferOwnership(newOwner);
+    }
 
     function withdraw(uint256 _amount) external payable onlyOwner {
         address payable _owner = payable(owner());
@@ -416,14 +430,9 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     address payable public developmentAddress;
 
-    function setDevelopmentAddress(address payable _developmentAddress) external onlyOwner {
+    function setDevelopmentAddress(address payable _developmentAddress) public onlyOwner {
         require(msg.sender == owner(), "Not Owner.");
         developmentAddress = _developmentAddress;
-    }
-
-    function setBoBBAddress(address payable _bobbAddress) external onlyOwner {
-        require(msg.sender == owner(), "Not Owner.");
-        BoBBAddress = _bobbAddress;
     }
 
     event PayoutsClaimed(address indexed _player, uint256 indexed _amount);
@@ -566,7 +575,68 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
             }
         }
         return result;
-    }    
+    }
+
+
+    // Timer for the voting
+    uint256 public votingTimer;
+
+    // Map to store the tokenId and its timestamp
+    mapping (uint256 => uint256) public tokenTimestamp;
+
+    // Global YAY and NAY votes
+    uint256 public YAYVotes;
+    uint256 public NAYVotes;
+
+    // Result of the vote
+    string public VotePassed;
+
+    // Proof of Game function
+    function  ProofOfGame(bytes32 vote, uint256 tokenId) public onlyOwner {
+        require(vote == bytes32("YES") || vote == bytes32("NO"), "Invalid.");
+        require(tokenTimestamp[tokenId] == 0, "Duplicate");
+        require(block.timestamp >= votingTimer, "Not Required.");
+
+        Player memory nft = players[tokenId];
+
+        uint256 totalVotes = nft.level + nft.fights + nft.wins + nft.activate + nft.history + (nft.attack / 100) + (nft.defence / 100);
+        
+        if (vote == bytes32("YES")) {
+            YAYVotes += totalVotes;
+        } else {
+            NAYVotes += totalVotes;
+        }
+        
+        tokenTimestamp[tokenId] = block.timestamp;
+    }
+
+    // Function to reset the voting process
+    function resetVoting() public onlyOwner {
+        YAYVotes = 0;
+        NAYVotes = 0;
+        VotePassed = "";
+        uint256 total = totalSupply();
+        for (uint256 i = 0; i < total; i++) {
+            tokenTimestamp[i] = 0;
+        }
+        votingTimer = 0;
+    }
+
+    // Function to start the voting process
+    function startVoting(uint256 _votingTimer) public onlyOwner {
+        votingTimer = block.timestamp + _votingTimer;
+        resetVoting();
+    }
+
+    // Function to end the voting process and determine the result
+    function endVoting() public onlyOwner {
+        require(block.timestamp >= votingTimer, "Not Ended.");
+        if (YAYVotes > NAYVotes) {
+        VotePassed = "PASSED";
+        } else {
+        VotePassed = "NOT PASSED";
+        }
+    } 
 
     function setGuard (address _newGuard) external onlyGuard {
         guard = _newGuard;
