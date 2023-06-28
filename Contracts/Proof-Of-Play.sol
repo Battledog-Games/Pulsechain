@@ -200,6 +200,10 @@ contract ProofOfPlay is Ownable, ReentrancyGuard {
         battledogs = _battledog;
     }
 
+    function setGametoken (address _gametoken) external onlyGuard {
+        GAMEToken = IERC20(_gametoken);
+    }
+
     event Pause();
     function pause() public onlyGuard {
         require(!paused, "Contract already paused.");
