@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * @title Harvester Contract for Pulsedoges.fun
+ * @title Incentivizer Contract
  */
 pragma solidity ^0.8.17;
 
@@ -9,18 +9,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 
-contract PulseHarvester is Ownable, ReentrancyGuard {
+contract Harvester is Ownable, ReentrancyGuard {
     IERC20 public GAMEToken;
     IERC20 public payToken;
     uint256 public totalRewards = 1;
-    uint256 public totalClaimedRewards; 
+    uint256 public totalClaimedRewards;
     uint256 public startTime;
     uint256 public rewardPerStamp;
     uint256 public numberOfParticipants = 0;
-    uint256 private _startTime;
-    uint256 private _duration;
-    uint256 public Duration = duration();
-    uint256 public timeLock = 3 days;
+    uint256 public Duration = 604800;
+    uint256 public timeLock = 5;
     uint256 public TotalGAMESent = 1;
     uint256 public tax = 0;
     uint256 public TaxTotal = 0;
@@ -43,6 +41,7 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
         uint256 rewardsOwed;
     }
     
+    event RewardsUpdated(uint256 totalRewards);
     event RewardAddedByDev(uint256 amount);
     event RewardClaimedByUser(address indexed user, uint256 amount);
     event AddGAME(address indexed user, uint256 amount);
@@ -98,7 +97,7 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
         claimData.eraAtBlock = block.timestamp;
         claimData.GAMESent += amount;
         TotalGAMESent += amount;
-        updateRewardPerStamp();
+        setRewards();
         emit AddGAME(msg.sender, _amount);
     }
 
@@ -118,7 +117,7 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
         Claim storage claimData = claimRewards[msg.sender];
         claimData.GAMESent = 0;
 
-        updateRewardPerStamp();
+       setRewards();
 
         if (numberOfParticipants > 0) {
             numberOfParticipants -= 1;
@@ -134,9 +133,14 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
     */
     function addRewards(uint256 _amount) external onlyOwner {
         payToken.transferFrom(msg.sender, address(this), _amount);
-        totalRewards += _amount;
-        updateRewardPerStamp();
+        setRewards();
         emit RewardAddedByDev(_amount);
+    }
+
+    function setRewards() internal onlyOwner {
+        totalRewards = payToken.balanceOf(address(this));
+        updateRewardPerStamp();
+        emit RewardsUpdated(totalRewards);
     }
 
     function updateAllClaims() internal {
@@ -173,8 +177,7 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
         // Update the total rewards claimed by the user
         Claimants[msg.sender] += rewards;
         totalClaimedRewards += rewards;
-        totalRewards -= rewards;
-        updateRewardPerStamp(); 
+        setRewards();
         UserClaims[msg.sender] = block.timestamp; // record the user's claim timestamp       
         emit RewardClaimedByUser(msg.sender, rewards);
     }
@@ -190,21 +193,13 @@ contract PulseHarvester is Ownable, ReentrancyGuard {
             require(GAMEToken.transfer(msg.sender, amount), "Transfer failed.");
             TaxTotal -= amount;
         }
-        totalRewards -= amount;
+        setRewards();
+    }
+
+    function setDuration(uint256 _seconds) external onlyOwner {        
+        updateAllClaims();
+        Duration = _seconds;
         updateRewardPerStamp();
-    }
-
-    function duration() public view returns (uint256) {
-        if (block.timestamp < _startTime + _duration) {
-            return _startTime + _duration - block.timestamp;
-        } else {
-            return 1;
-        }
-    }
-
-    function setDuration(uint256 _seconds) public {
-        _startTime = block.timestamp;
-        _duration = _seconds;
     }
 
     function setTimeLock(uint256 _seconds) external onlyOwner {
