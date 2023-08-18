@@ -222,10 +222,10 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         if(players[_tokenId].activate > 0) {
             require(players[_tokenId].wins >= 5, "Insufficient wins!");   
             // Calculate the payout cost  
-            uint256 payreward = ((requiredAmount - (requiredAmount/10))/divisor) * 5 * 5;
+            uint256 payreward = ((requiredAmount - (requiredAmount/10))/divisor) * 5 * 5; 
             players[_tokenId].payout -= payreward;
             players[_tokenId].wins -= 5;
-            cost = payreward * players[_tokenId].activate * divisor;  
+            cost = payreward * divisor;  
             //Initiate a 100% burn from the contract       
             burn(cost, 100);   
         } else {               
