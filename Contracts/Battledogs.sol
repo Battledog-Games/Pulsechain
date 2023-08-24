@@ -276,7 +276,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     function Assault(uint256 attackerId, uint256 defenderId) public payable nonReentrant {
         require(!paused, "Paused Contract");
         require(msg.sender == ownerOf(attackerId), "Not your NFT!");
-        require(players[attackerId].activate > 0, "Activate NFT.");
+        require(players[attackerId].activate > 0 && players[defenderId].activate > 0, "Activate NFT.");
         require(players[attackerId].attack > 0, "No attack.");
         require(players[defenderId].attack > 0, "Impotent enemy.");
         require(functionCalls[attackerId] < 1000, "Limit reached.");
@@ -343,7 +343,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(!paused, "Paused Contract");
         require(msg.sender == ownerOf(attackerId), "Not your NFT"); 
         require(!blacklisted[attackerId].blacklist, "Blacklisted"); 
-        require(players[attackerId].activate > 0, "Activate NFT");       
+        require(players[attackerId].activate > 0 && players[defenderId].activate > 0, "Activate NFT");       
         require(players[attackerId].defence > 0, "No defence");
         require(players[defenderId].defence > 0, "Impotent enemy");
         require(functionCalls[attackerId] < 1000, "Limit reached.");
@@ -676,4 +676,4 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     function setGuard (address _newGuard) external onlyGuard {
         guard = _newGuard;
     }
-}
+}              
