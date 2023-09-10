@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: No license
 
-// @title NFT Game by OxSorcerers for Battledog Games (PULSECHAIN)
+// @title NFT Game by OxSorcerers for Battledog Games (Pulsechain)
 // https://twitter.com/0xSorcerers | https://github.com/Dark-Viper | https://t.me/Oxsorcerer | https://t.me/battousainakamoto | https://t.me/darcViper
 
 pragma solidity ^0.8.17;
@@ -181,8 +181,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     function burn(uint256 _burnAmount, uint256 _num) internal {
-        uint256 num = _num - 10;
-        uint256 burnAmount = (_burnAmount * num)/100 ;
+        uint256 burnAmount = (_burnAmount * _num)/100 ;
 
         uint256 tax1 =  (burnAmount * deadtax)/100;
         uint256 tax2 =  (burnAmount * bobbtax)/100;
@@ -216,6 +215,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     function activateNFT (uint256 _tokenId) public payable nonReentrant {
         require(!paused, "Paused Contract");
+        require(msg.sender == ownerOf(_tokenId), "Not your NFT");
         require(_tokenId > 0 && _tokenId <= totalSupply(), "Not Found");
         require(!blacklisted[_tokenId].blacklist, "Blacklisted"); 
         uint256 cost;
@@ -279,7 +279,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(players[attackerId].activate > 0 && players[defenderId].activate > 0, "Activate NFT.");
         require(players[attackerId].attack > 0, "No attack.");
         require(players[defenderId].attack > 0, "Impotent enemy.");
-        require(functionCalls[attackerId] < 1000, "Limit reached.");
+        require(functionCalls[attackerId] < 1001, "Limit reached.");
         require(block.timestamp - fightTimestamps[attackerId][defenderId] >= 24 hours, "Too soon.");
         require(attackerId > 0 && attackerId <= totalSupply() && defenderId > 0 && defenderId <= totalSupply(), "Not Found");
         require(attackerId != defenderId, "Invalid");
@@ -346,7 +346,7 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         require(players[attackerId].activate > 0 && players[defenderId].activate > 0, "Activate NFT");       
         require(players[attackerId].defence > 0, "No defence");
         require(players[defenderId].defence > 0, "Impotent enemy");
-        require(functionCalls[attackerId] < 1000, "Limit reached.");
+        require(functionCalls[attackerId] < 1001, "Limit reached.");
         // check if the last debilitation was more than 24 hours ago
         require(block.timestamp - fightTimestamps[attackerId][defenderId] >= 24 hours, "Too soon.");
         require(attackerId > 0 && attackerId <= totalSupply() && defenderId > 0 && defenderId <= totalSupply(), "Not Found");
@@ -514,7 +514,6 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event Pause();
     function pause() public onlyGuard {
-        require(msg.sender == owner(), "Only Deployer.");
         require(!paused, "Contract already paused.");
         paused = true;
         emit Pause();
@@ -522,7 +521,6 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event Unpause();
     function unpause() public onlyGuard {
-        require(msg.sender == owner(), "Only Deployer.");
         require(paused, "Contract not paused.");
         paused = false;
         emit Unpause();
@@ -600,66 +598,6 @@ contract battledog is ERC721Enumerable, Ownable, ReentrancyGuard {
         }
         return result;
     }
-
-    // Timer for the voting
-    uint256 public votingTimer;
-
-    // Map to store the tokenId and its timestamp
-    mapping (uint256 => uint256) public tokenTimestamp;
-
-    // Global YAY and NAY votes
-    uint256 public YAYVotes;
-    uint256 public NAYVotes;
-
-    // Result of the vote
-    string public VotePassed;
-
-    // Proof of Game function
-    function ProofOfGame(uint256 vote, uint256 tokenId) public onlyOwner {
-        require(vote == 0 || vote == 1, "Invalid.");
-        require(tokenTimestamp[tokenId] == 0, "Duplicate");
-        require(block.timestamp >= votingTimer, "Not Required.");
-
-        Player memory nft = players[tokenId];
-
-        uint256 totalVotes = nft.level + nft.fights + nft.wins + nft.activate + nft.history + (nft.attack / 100) + (nft.defence / 100);
-        
-        if (vote > 0) {
-            YAYVotes += totalVotes;
-        } else {
-            NAYVotes += totalVotes;
-        }
-        
-        tokenTimestamp[tokenId] = block.timestamp;
-    }
-
-    // Function to reset the voting process
-    function resetVoting() public onlyOwner {
-        YAYVotes = 0;
-        NAYVotes = 0;
-        VotePassed = "";
-        uint256 total = totalSupply();
-        for (uint256 i = 0; i < total; i++) {
-            tokenTimestamp[i] = 0;
-        }
-        votingTimer = 0;
-    }
-
-    // Function to start the voting process
-    function startVoting(uint256 _votingTimer) public onlyOwner {
-        votingTimer = block.timestamp + _votingTimer;
-        resetVoting();
-    }
-
-    // Function to end the voting process and determine the result
-    function endVoting() public onlyOwner {
-        require(block.timestamp >= votingTimer, "Not Ended.");
-        if (YAYVotes > NAYVotes) {
-        VotePassed = "PASSED";
-        } else {
-        VotePassed = "NOT PASSED";
-        }
-    } 
 
     function addToBlacklist(uint256[] calldata _nfts) external onlyOwner {
         for (uint256 i = 0; i < _nfts.length; i++) {
